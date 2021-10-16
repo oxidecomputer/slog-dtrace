@@ -1,0 +1,17 @@
+[package]
+name = "slog-dtrace"
+version = "0.1.0"
+authors = ["Benjamin Naecker <ben@oxide.computer>"]
+edition = "2018"
+
+[dependencies]
+serde = "*"
+serde_json = "*"
+slog = "*"
+chrono = { version = "*", features = [ "serde" ] }
+usdt = "0.1.16"
+
+[dev-dependencies]
+slog-async = "*"
+slog-term = "*"
+subprocess = "*"
