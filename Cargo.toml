@@ -8,13 +8,13 @@ license = "Apache-2.0"
 repository = "https://github.com/oxidecomputer/slog-dtrace.git"
 
 [dependencies]
-serde = "*"
-serde_json = "*"
-slog = "*"
-chrono = { version = "*", features = [ "serde" ] }
+serde = "1"
+serde_json = "1"
+slog = "2"
+chrono = { version = "0.4", features = [ "serde" ] }
 usdt = "0.1.16"
 
 [dev-dependencies]
-slog-async = "*"
-slog-term = "*"
-subprocess = "*"
+slog-async = "2"
+slog-term = "2"
+subprocess = "0.2"
