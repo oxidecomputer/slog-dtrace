@@ -100,9 +100,7 @@ mod tests {
             warn!(log, "a message"; "some-key" => 2);
         }
 
-        let mut communicator = dtrace
-            .communicate_start(None)
-            .limit_time(SUBPROC_WAIT);
+        let mut communicator = dtrace.communicate_start(None).limit_time(SUBPROC_WAIT);
         match communicator.read_string() {
             Err(e) => {
                 kill_dtrace(dtrace.pid().unwrap());
@@ -189,9 +187,7 @@ mod tests {
             info!(log, "just for dtrace"; "dtrace" => true);
         }
 
-        let mut communicator = dtrace
-            .communicate_start(None)
-            .limit_time(SUBPROC_WAIT);
+        let mut communicator = dtrace.communicate_start(None).limit_time(SUBPROC_WAIT);
         let stdout = communicator
             .read_string()
             .expect("failed to read dtrace output")

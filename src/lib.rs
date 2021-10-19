@@ -24,7 +24,7 @@
 //! -------
 //!
 //! ```bash
-//! $ cargo run --example simple
+//! $ cargo +nightly run --example simple
 //!
 //! ```
 //!

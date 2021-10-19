@@ -26,5 +26,7 @@ rustc --version
 #
 export RUSTFLAGS="-D warnings"
 export RUSTDOCFLAGS="-D warnings"
+banner fmt
+ptime -m cargo +nightly fmt -- --check
 banner test
 ptime -m cargo +nightly test --verbose -- --test-threads 1
