@@ -1,6 +1,6 @@
 [package]
 name = "slog-dtrace"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Benjamin Naecker <ben@oxide.computer>"]
 edition = "2018"
 description = "Forward slog messages to DTrace"
@@ -12,7 +12,7 @@ serde = "1"
 serde_json = "1"
 slog = "2"
 chrono = { version = "0.4", features = [ "serde" ] }
-usdt = "0.1.17"
+usdt = "0.2"
 
 [dev-dependencies]
 slog-async = "2"

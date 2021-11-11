@@ -9,7 +9,7 @@ fn main() {}
 #[cfg(test)]
 mod tests {
     use slog::{info, o, warn, Drain, Logger};
-    use slog_dtrace::Message;
+    use slog_dtrace::{Message, ProbeRegistration};
     use std::ffi::{OsStr, OsString};
     use std::io::Read;
     use std::process::{Command, Stdio};
@@ -75,7 +75,7 @@ mod tests {
     }
 
     // Parse a message from a line, or None.
-    fn read_message_from_line<'a, S>(line: S) -> Option<Message<'a>>
+    fn read_message_from_line<S>(line: S) -> Option<Message>
     where
         S: AsRef<str>,
     {
@@ -95,8 +95,9 @@ mod tests {
         let mut dtrace = run_dtrace(&["-Z", "-n", cmd, "-q"]).unwrap();
 
         {
-            let drain = slog_dtrace::Dtrace::new().unwrap().fuse();
-            let log = Logger::root(drain, o!("key" => "value"));
+            let (drain, registration) = slog_dtrace::Dtrace::new();
+            assert!(registration.is_success(), "Failed to register probes");
+            let log = Logger::root(drain.fuse(), o!("key" => "value"));
             warn!(log, "a message"; "some-key" => 2);
         }
 
@@ -181,8 +182,11 @@ mod tests {
                 .build()
                 .filter_level(slog::Level::Warning)
                 .fuse();
-            let drain = slog_dtrace::with_drain(drain).unwrap().fuse();
-            let log = Logger::root(drain, o!("key" => "value"));
+            let (drain, registration) = slog_dtrace::with_drain(drain);
+            if let ProbeRegistration::Failed(ref e) = registration {
+                panic!("Failed to register probes: {:#?}", e);
+            }
+            let log = Logger::root(drain.fuse(), o!("key" => "value"));
             warn!(log, "a message"; "some-key" => 2);
             info!(log, "just for dtrace"; "dtrace" => true);
         }
