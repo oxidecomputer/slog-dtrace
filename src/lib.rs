@@ -32,7 +32,7 @@
 //! command in another shell should reveal more messages.
 //!
 //! ```bash
-//! # dtrace -Z -n 'slog*::: { printf("%s\n", copyinstr(arg0)); }' -q
+//! ## dtrace -Z -n 'slog*::: { printf("%s\n", copyinstr(arg0)); }' -q
 //! {"ok": {"location":{"module":"simple","file":"examples/simple.rs","line":15},"level":"WARN","timestamp":"2021-10-19T17:55:55.260393409Z","message":"a warning message for everyone","kv":{"cool":true,"key":"value"}}}
 //! {"ok": {"location":{"module":"simple","file":"examples/simple.rs","line":16},"level":"INFO","timestamp":"2021-10-19T17:55:55.260531762Z","message":"info is just for dtrace","kv":{"cool":true,"hello":"from dtrace","key":"value"}}}
 //! {"ok": {"location":{"module":"simple","file":"examples/simple.rs","line":17},"level":"DEBUG","timestamp":"2021-10-19T17:55:55.260579423Z","message":"only dtrace gets debug messages","kv":{"cool":true,"hello":"from dtrace","key":"value"}}}
@@ -44,7 +44,7 @@
 //! just messages emitted via the `debug!` logging macro.
 //!
 //! ```bash
-//! # dtrace -Z -n 'slog*:::debug { printf("%s\n", copyinstr(arg0)); }' -q
+//! ## dtrace -Z -n 'slog*:::debug { printf("%s\n", copyinstr(arg0)); }' -q
 //! {"ok": {"location":{"module":"simple","file":"examples/simple.rs","line":17},"level":"DEBUG","timestamp":"2021-10-19T17:57:30.578681933Z","message":"only dtrace gets debug messages","kv":{"cool":true,"hello":"from dtrace","key":"value"}}}
 //! ```
 //!
@@ -59,30 +59,29 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use slog::{Drain, KV};
-use std::borrow::Cow;
 
 /// Type alias for a generic JSON map.
 pub type JsonMap = serde_json::Map<String, serde_json::Value>;
 
-#[usdt::provider]
-mod slog {
+#[usdt::provider(provider = "slog", probe_format = "{probe}_")]
+mod probes {
     use crate::Message;
-    fn trace(msg: Message) {}
-    fn debug(msg: Message) {}
-    fn info(msg: Message) {}
-    fn warn(msg: Message) {}
-    fn error(msg: Message) {}
-    fn critical(msg: Message) {}
+    fn trace(msg: &Message) {}
+    fn debug(msg: &Message) {}
+    fn info(msg: &Message) {}
+    fn warn(msg: &Message) {}
+    fn error(msg: &Message) {}
+    fn critical(msg: &Message) {}
 }
 
 /// `Location` describes the location in the source from which a log message was issued.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct Location<'a> {
+pub struct Location {
     /// The Rust module from which the message was issued.
-    pub module: Cow<'a, str>,
+    pub module: String,
 
     /// The source file from which the message was issued.
-    pub file: Cow<'a, str>,
+    pub file: String,
 
     /// The line of the source file from which the message was issued.
     pub line: u32,
@@ -90,12 +89,12 @@ pub struct Location<'a> {
 
 /// A `Message` captures the all information about a single log message.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct Message<'a> {
+pub struct Message {
     /// The information about the [`Location`] of a message in the source.
-    pub location: Location<'a>,
+    pub location: Location,
 
     /// The logging level, see [`slog::Level`].
-    pub level: Cow<'a, str>,
+    pub level: String,
 
     /// The timestamp at which the message was issued.
     ///
@@ -110,8 +109,28 @@ pub struct Message<'a> {
     pub kv: JsonMap,
 }
 
+/// `ProbeRegistration` stores the result of registering probes with the DTrace kernel module.
+///
+/// Though unlikely, it's possible that probe registration fails. This may happen, for example, if
+/// the DTrace kernel module is extremely low on memory. One may want to abort the application in
+/// this case, or one might decide that a running but degraded application is better than nothing i
+/// such a situation. The `ProbeRegistration` enum contains information about whether probes were
+/// successfully registered. The caller may decide how to handle such a case.
+#[derive(Debug)]
+pub enum ProbeRegistration {
+    Success,
+    Failed(usdt::Error),
+}
+
+impl ProbeRegistration {
+    /// Helper to check if the variant is `Success`.
+    pub fn is_success(&self) -> bool {
+        matches!(self, ProbeRegistration::Success)
+    }
+}
+
 /// A [`slog::Drain`] that forwards all log messages to DTrace.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Dtrace<D> {
     _phantom: std::marker::PhantomData<D>,
 }
@@ -123,34 +142,42 @@ impl Dtrace<slog::Discard> {
     /// to emit messages to another location as well, you can use [`with_drain`] or call
     /// [`slog::Duplicate`].
     ///
-    /// An error is returned if the DTrace probes could not be registered with the DTrace kernel
-    /// module.
-    pub fn new() -> Result<Self, usdt::Error> {
-        usdt::register_probes()?;
-        Ok(Self {
-            _phantom: std::marker::PhantomData,
-        })
+    /// Note that it's possible for probe registration to fail. The result of registering is
+    /// returned as the second tuple element. It may be inspected so that callers can decide how to
+    /// handle failure. See [`ProbeRegistration`] for more information.
+    pub fn new() -> (Self, ProbeRegistration) {
+        let registration = match usdt::register_probes() {
+            Ok(_) => ProbeRegistration::Success,
+            Err(e) => ProbeRegistration::Failed(e),
+        };
+        (
+            Self {
+                _phantom: std::marker::PhantomData,
+            },
+            registration,
+        )
     }
 }
 
 /// Combine the [`Dtrace`] drain with another drain.
 ///
 /// This duplicates all log messages to `drain` and a new `Dtrace` drain.
-pub fn with_drain<D>(drain: D) -> Result<slog::Duplicate<D, Dtrace<slog::Discard>>, usdt::Error>
+///
+/// Note that probe registration can fail, see [`ProbeRegistration`] and [`Dtrace::new`] for more
+/// information.
+pub fn with_drain<D>(drain: D) -> (slog::Duplicate<D, Dtrace<slog::Discard>>, ProbeRegistration)
 where
     D: Drain,
 {
-    Dtrace::new().map(|d| slog::Duplicate(drain, d))
+    let (d, registration) = Dtrace::new();
+    (slog::Duplicate(drain, d), registration)
 }
 
 // Create a message to emit to DTrace
-fn create_dtrace_message<'a>(
-    record: &'a slog::Record,
-    values: &'a slog::OwnedKVList,
-) -> Message<'a> {
+fn create_dtrace_message(record: &slog::Record, values: &slog::OwnedKVList) -> Message {
     let location = Location {
-        module: Cow::from(record.module()),
-        file: Cow::from(record.file()),
+        module: record.module().to_string(),
+        file: record.file().to_string(),
         line: record.line(),
     };
     let mut serializer = Serializer::default();
@@ -172,7 +199,7 @@ fn create_dtrace_message<'a>(
     let msg = Message {
         location: location,
         timestamp: Utc::now(),
-        level: Cow::from(record.level().as_str()),
+        level: record.level().as_str().to_string(),
         message: record.msg().to_string(),
         kv,
     };
@@ -192,12 +219,12 @@ where
         values: &slog::OwnedKVList,
     ) -> Result<Self::Ok, Self::Err> {
         match record.level() {
-            slog::Level::Trace => slog_trace!(|| create_dtrace_message(record, values)),
-            slog::Level::Debug => slog_debug!(|| create_dtrace_message(record, values)),
-            slog::Level::Info => slog_info!(|| create_dtrace_message(record, values)),
-            slog::Level::Warning => slog_warn!(|| create_dtrace_message(record, values)),
-            slog::Level::Error => slog_error!(|| create_dtrace_message(record, values)),
-            slog::Level::Critical => slog_critical!(|| create_dtrace_message(record, values)),
+            slog::Level::Trace => probes::trace_!(|| create_dtrace_message(record, values)),
+            slog::Level::Debug => probes::debug_!(|| create_dtrace_message(record, values)),
+            slog::Level::Info => probes::info_!(|| create_dtrace_message(record, values)),
+            slog::Level::Warning => probes::warn_!(|| create_dtrace_message(record, values)),
+            slog::Level::Error => probes::error_!(|| create_dtrace_message(record, values)),
+            slog::Level::Critical => probes::critical_!(|| create_dtrace_message(record, values)),
         }
         Ok(())
     }
