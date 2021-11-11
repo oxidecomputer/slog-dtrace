@@ -56,6 +56,8 @@
 // Copyright 2021 Oxide Computer Company
 
 #![feature(asm)]
+#![cfg_attr(target_os = "macos", feature(asm_sym))]
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use slog::{Drain, KV};
