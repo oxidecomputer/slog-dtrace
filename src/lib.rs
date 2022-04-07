@@ -130,6 +130,7 @@ pub struct Message {
 /// this case, or one might decide that a running but degraded application is better than nothing i
 /// such a situation. The `ProbeRegistration` enum contains information about whether probes were
 /// successfully registered. The caller may decide how to handle such a case.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum ProbeRegistration {
     Success,
@@ -211,7 +212,7 @@ fn create_dtrace_message(record: &slog::Record, values: &slog::OwnedKVList) -> M
         }
     };
     let msg = Message {
-        location: location,
+        location,
         timestamp: Utc::now(),
         level: record.level().as_str().to_string(),
         message: record.msg().to_string(),
