@@ -1,5 +1,7 @@
 # slog-dtrace
 
+[![Latest Version]][crates.io] [![Documentation]][docs.rs]
+
 Forward `slog` messages as DTrace USDT probes.
 
 ## Overview
@@ -54,3 +56,8 @@ just messages emitted via the `debug!` logging macro.
 ## Notes
 
 This crate inherits a reliance on a nightly toolchain from the `usdt` crate.
+
+[Latest Version]: https://img.shields.io/crates/v/slog-dtrace.svg
+[crates.io]: https://crates.io/crates/slog-dtrace
+[Documentation]: https://docs.rs/slog-dtrace/badge.svg
+[docs.rs]: https://docs.rs/slog-dtrace
