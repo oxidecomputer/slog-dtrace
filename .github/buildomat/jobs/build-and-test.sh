@@ -3,7 +3,7 @@
 #: name = "helios / build-and-test"
 #: variety = "basic"
 #: target = "helios"
-#: rust_toolchain = "nightly"
+#: rust_toolchain = "1.66"
 #: output_rules = []
 #:
 
@@ -27,6 +27,6 @@ rustc --version
 export RUSTFLAGS="-D warnings"
 export RUSTDOCFLAGS="-D warnings"
 banner fmt
-ptime -m cargo +nightly fmt -- --check
+ptime -m cargo fmt -- --check
 banner test
-ptime -m cargo +nightly test --verbose -- --test-threads 1
+ptime -m cargo test --verbose -- --test-threads 1
