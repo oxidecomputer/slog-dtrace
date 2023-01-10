@@ -21,7 +21,9 @@ fn main() {
     }
 
     #[cfg(target_os = "macos")]
-    if !version_check::supports_feature("asm_sym").unwrap_or(false) {
-        println!("cargo:rustc-cfg=usdt_stable_asm_sym");
+    if version_check::supports_feature("asm_sym").unwrap_or(false)
+        && !version_check::is_min_version("1.67").unwrap_or(false)
+    {
+        println!("cargo:rustc-cfg=usdt_need_asm_sym");
     }
 }
