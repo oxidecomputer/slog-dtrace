@@ -1,6 +1,6 @@
 [package]
 name = "slog-dtrace"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Benjamin Naecker <ben@oxide.computer>"]
 edition = "2018"
 description = "Forward slog messages to DTrace"

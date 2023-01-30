@@ -67,8 +67,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(not(usdt_stable_asm), feature(asm))]
-#![cfg_attr(all(target_os = "macos", not(usdt_stable_asm_sym)), feature(asm_sym))]
+#![cfg_attr(usdt_need_asm, feature(asm))]
+#![cfg_attr(all(target_os = "macos", usdt_need_asm_sym), feature(asm_sym))]
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
