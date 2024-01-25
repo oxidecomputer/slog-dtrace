@@ -134,7 +134,7 @@ pub struct Message {
 #[derive(Debug)]
 pub enum ProbeRegistration {
     Success,
-    Failed(usdt::Error),
+    Failed(String),
 }
 
 impl ProbeRegistration {
@@ -163,7 +163,7 @@ impl Dtrace<slog::Discard> {
     pub fn new() -> (Self, ProbeRegistration) {
         let registration = match usdt::register_probes() {
             Ok(_) => ProbeRegistration::Success,
-            Err(e) => ProbeRegistration::Failed(e),
+            Err(e) => ProbeRegistration::Failed(e.to_string()),
         };
         (
             Self {
